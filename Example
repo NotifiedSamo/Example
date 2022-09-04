@@ -2,6 +2,7 @@ local remote = game.ReplicatedStorage.playergui
 local playerval = game.ReplicatedStorage.playervalues
 local remote3 = game.ReplicatedStorage.playerguidestroy
 
+--when the remote function triggers check what players have the ingame value then add a gui of the players name to the scrolling frame
 remote.OnClientEvent:Connect(function()
 	for _,v in pairs(game.Players:GetPlayers()) do
 		if v:FindFirstChild("ingame") then
@@ -19,8 +20,132 @@ remote.OnClientEvent:Connect(function()
 	end
 end)
 
+--if this remote function fires which holds the info of plr then find the player's name and delete his ui
 remote3.OnClientEvent:Connect(function(plr)
 	if script.Parent.ScrollingFrame:FindFirstChild(plr.Name) then
 		script.Parent.ScrollingFrame:FindFirstChild(plr.Name):Destroy()
 	end
 end)
+
+--------------------------------------------
+
+local batid = 11111111
+local MarketplaceService = game:GetService("MarketplaceService")
+
+game.Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function(char)
+
+		local hasPass = false
+
+		-- make sure they have it
+		local success, message = pcall(function()
+			hasPass = MarketplaceService:UserOwnsGamePassAsync(plr.UserId, batid)
+		end)
+
+		-- warn if there is an issue
+		if not success then
+			warn("Error while checking if player has pass: " .. tostring(message))
+			return
+		end
+
+		-- if they have it then give them a bat
+		if hasPass == true then
+			local bat = game.ReplicatedStorage.Bat:Clone()
+			bat.Parent = plr.Backpack
+		end
+	end)
+end)
+---------------------------------------------
+local part = script.Parent.Handle
+local parts = script.Parent.Part
+local tool = script.Parent
+local debounce = false
+
+--if the tool is clicked then check if the person touched is not equal to the parent and if its not damage said humanoid and play an animation and add a debounce so they don't spam it
+tool.Activated:Connect(function()
+	local character = tool.Parent
+	local humanoid = character:FindFirstChild("Humanoid")
+	local animator = humanoid:FindFirstChild("Animator")
+	if debounce == false then
+		debounce = true
+	
+		parts.Touched:Connect(function(hit)
+			if hit.Parent:FindFirstChild("Humanoid") and hit ~= tool.Parent:FindFirstChild(hit) and hit.Parent.Name == "outlawminion" and debounce == true then
+				hit.Parent:FindFirstChild("Humanoid").Health = hit.Parent:FindFirstChild("Humanoid").Health - 2
+				part.hit.Playing = true
+				tool.GripForward = Vector3.new(-0.265, 0.699, 0.665)
+				tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
+				tool.GripRight = Vector3.new(0.89, 0.442, -0.111)
+				tool.GripUp = Vector3.new(0.371, -0.562, 0.739)
+				local kickAnimation = script.Animation
+				local kickAnimationTrack = animator:LoadAnimation(kickAnimation)
+
+				-- Play animation track
+				kickAnimationTrack:Play()
+			end
+		end)
+		wait(0.7)
+		debounce = false
+		tool.GripForward = Vector3.new(-0.444, 0.896, 0.008)
+		tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
+		tool.GripRight = Vector3.new(0.896, 0.444, -0.013)
+		tool.GripUp = Vector3.new(0.015, -0.002, 1)		
+	end
+end)
+---------------------------------------------------------------------
+local SocialService = game:GetService("SocialService")
+local Players = game.Players
+local player = Players.LocalPlayer
+local gui = script.Parent
+
+--gui gets clicked then check if the game allows you to send invites and if so prompt it
+gui.Activated:Connect(function()
+	local canInvite = SocialService:CanSendGameInviteAsync(player)
+	if canInvite then
+		SocialService:PromptGameInvite(player)
+	end
+end)
+
+--if the player hovers on the gui then play a sound and turn the color to red
+gui.MouseEnter:Connect(function()
+	script.Parent.select.Playing = true
+	gui.TextColor3 = Color3.new(1, 0, 0)
+end)
+
+--once the mouse leaves change the color back to black
+gui.MouseLeave:Connect(function()
+	gui.TextColor3 = Color3.new(0, 0, 0)
+end)
+----------------------------------------------------------------------
+--when a players character is added wait till they die and when or if they do, check if they have ant of the tools listed below if they do clone it and place it in the workspace
+game.Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function(char)
+		char.Humanoid.Died:Connect(function()
+			if char:FindFirstChild("Hammer") or plr.Backpack:FindFirstChild("Hammer") then
+				local tool = game.ReplicatedStorage.Tools.ham:Clone()
+				tool.Parent = workspace
+			end
+			if char:FindFirstChild("Key") or plr.Backpack:FindFirstChild("Key") then
+				local tool = game.ReplicatedStorage.Tools.Key:Clone()
+				tool.Parent = workspace
+			end
+			if char:FindFirstChild("Crobar") or plr.Backpack:FindFirstChild("Crobar") then
+				local tool = game.ReplicatedStorage.Tools.cro:Clone()
+				tool.Parent = workspace
+			end
+			if char:FindFirstChild("Screwdriver") or plr.Backpack:FindFirstChild("Screwdriver") then
+				local tool = game.ReplicatedStorage.Tools.sc:Clone()
+				tool.Parent = workspace
+			end
+			if char:FindFirstChild("TNT") or plr.Backpack:FindFirstChild("TNT") then
+				local tool = game.ReplicatedStorage.Tools.tnt:Clone()
+				tool.Parent = workspace
+			end
+			if char:FindFirstChild("Carkeys") or plr.Backpack:FindFirstChild("Carkeys") then
+				local tool = game.ReplicatedStorage.Tools.carkey:Clone()
+				tool.Parent = workspace
+			end
+		end)
+	end)
+end)
+
