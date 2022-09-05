@@ -1,153 +1,258 @@
-local remote = game.ReplicatedStorage.playergui
-local playerval = game.ReplicatedStorage.playervalues
-local remote3 = game.ReplicatedStorage.playerguidestroy
+Tool = script.Parent -- get the tool
+Handle = Tool:WaitForChild("Handle") -- get the handle in the tool
 
---when the remote function triggers check what players have the ingame value then add a gui of the players name to the scrolling frame
-remote.OnClientEvent:Connect(function()
-	for _,v in pairs(game.Players:GetPlayers()) do -- loop through all the players
-		if v:FindFirstChild("ingame") then -- see if they have the ingame value
-		for i = 0,_,1 do -- loop one time
-				if not script.Parent.ScrollingFrame:FindFirstChild(v.Name) then -- if you don't find a gui with the name of the player as the text create one
-				
-				local clo = game.ReplicatedStorage.TextLabel:Clone()
-				clo.Parent = script.Parent.ScrollingFrame
-				clo.Name = v.Name
-				clo.Text = v.Name
-					
+Players = game:GetService("Players") -- get the player service
+Debris = game:GetService("Debris") -- get the debris service
+
+Speed = 100 -- set variable speed to 100
+Duration = 9999999 -- set duration to 9999999
+
+NozzleOffset = Vector3.new(0, 0.4, -1.1) -- set the nozzle offset to the vector3 value of Vector3.new(0, 0.4, -1.1)
+
+Sounds = { -- make a table of sounds located in the handle
+	Fire = Handle:WaitForChild("Fire"),
+	Reload = Handle:WaitForChild("Reload"),
+	HitFade = Handle:WaitForChild("HitFade")
+}
+
+PointLight = Handle:WaitForChild("PointLight") -- find the pointlight in the handle
+
+ServerControl = (Tool:FindFirstChild("ServerControl") or Instance.new("RemoteFunction")) -- set the value servercontrol to the remotefunction named servercontrol and if you don't find it then create it
+ServerControl.Name = "ServerControl"
+ServerControl.Parent = Tool
+
+ClientControl = (Tool:FindFirstChild("ClientControl") or Instance.new("RemoteFunction")) -- set the value clientcontrol to the remotefunction named clientcontrol and if you don't find it then create it
+ClientControl.Name = "ClientControl"
+ClientControl.Parent = Tool
+
+ServerControl.OnServerInvoke = (function(player, Mode, Value, arg) -- when the remotefunction named servercontrol is invoked do this function with the parameters player, mode, value, and arg
+	if player ~= Player or Humanoid.Health == 0 or not Tool.Enabled then -- player paremeter is not equal to the player or the humanoid of the player is equal to 0 or the tool isn't enabled then return the function
+		return
+	end
+	if Mode == "Click" and Value then -- check if Mode parameter passed from the remotefunction is equal to the sting click and if the the Value is true then pass the function Activated with the variable arg
+		Activated(arg)
+	end
+end)
+
+function InvokeClient(Mode, Value) -- create the function invokeclient with the parameters mode and value
+	pcall(function() -- create a protected call that invokes the remote function clientcontrol and send the parameters of Player, Mode, and Value
+		ClientControl:InvokeClient(Player, Mode, Value)
+	end)
+end
+
+function TagHumanoid(humanoid, player) -- create the function named taghumanoid with the parameters of humanoid and player
+	local Creator_Tag = Instance.new("ObjectValue") -- create a new object value
+	Creator_Tag.Name = "creator" -- name that value creator
+	Creator_Tag.Value = player -- The value of creator will be set to the player parameter
+	Debris:AddItem(Creator_Tag, 2) -- add an item to the debris service wich is the value creator which will be destroyed within 2 seconds
+	Creator_Tag.Parent = humanoid -- creator will be located in the humanoid parameter
+end
+
+function UntagHumanoid(humanoid) -- create the function named untaghumanoid with the parameter humanoid
+	for i, v in pairs(humanoid:GetChildren()) do -- loop through everything located in the humanoid parameter
+		if v:IsA("ObjectValue") and v.Name == "creator" then -- if you find the creator value that was created in the taghumanoid function then destroy it
+			v:Destroy()
+		end
+	end
+end
+
+function FindCharacterAncestor(Parent) -- create a function called FindCharacterAncestor with teh parameter of parent
+	if Parent and Parent ~= game:GetService("Workspace") then -- if parent exists and is not equal to the workspace then execute the following code
+		local humanoid = Parent:FindFirstChild("Humanoid") -- get the humanoid located in parent
+		if humanoid then -- if it exists then return Parent and humanoid
+			return Parent, humanoid
+		else -- if not return the the parent of the parent parameter
+			return FindCharacterAncestor(Parent.Parent)
+		end
+	end
+	return nil
+end
+
+function GetTransparentsRecursive(Parent, PartsTable) -- create a function called GetTransparentsRecursive with the parameters of parent and partstable
+	local PartsTable = (PartsTable or {}) -- create a variable that is either equal to the parameter partstable or a table
+	for i, v in pairs(Parent:GetChildren()) do -- loop through everying in the Parent parameter
+		local TransparencyExists = false -- create the variable TransparencyExists which is equal to false
+		pcall(function() -- create a protected function that executes the following code
+			local Transparency = v["Transparency"] -- create a variable named transparency that is equal to something in parent called transparency
+			if Transparency then -- if transparency exists
+				TransparencyExists = true -- make the transparencyexists value true 
+			end
+		end)
+		if TransparencyExists then -- if the transparencyexists exists then insert in the Partstable table v which is everything located in parent
+			table.insert(PartsTable, v)
+		end
+		GetTransparentsRecursive(v, PartsTable) -- call the function with the parameters v and partstable
+	end
+	return PartsTable -- return the table PartsTable
+end
+
+function SelectionBoxify(Object) -- create a function called SelectionBoxify with the parameter object
+	local SelectionBox = Instance.new("SelectionBox") --create a new selectionbox
+	SelectionBox.Adornee = Object -- set teh adornee to the object parameter
+	SelectionBox.Color = BrickColor.new("Toothpaste") -- set its color to the brickcolor of toothpaste
+	SelectionBox.Parent = Object -- make the selectionbox's parent the object parameter
+	return SelectionBox -- return the selectionbox variable
+end
+
+local function Light(Object) -- create a function called light with the parameter of object
+	local Light = PointLight:Clone() -- create a variable called light which is a copy of the Pointlight located in the handle
+	Light.Range = (Light.Range + 2) -- make the light's range the originale range plus 2
+	Light.Parent = Object -- make the parent of the light the object parameter
+end
+
+function FadeOutObjects(Objects, FadeIncrement) -- make a function called FadeOutObjects with the parameters object and fadeincrement
+	repeat -- execute the following code once then kkep repeating until the statement is met
+		local LastObject = nil -- create a variable called lastobject whcih is equal to nil
+		for i, v in pairs(Objects) do -- loop through the parameter objects
+			v.Transparency = (v.Transparency + FadeIncrement) -- make v's transparency equal to the original transparency plus the fadeincrement parameter
+			LastObject = v -- set the variable lastobject from nil to v
+		end
+		wait() -- wait so it doesn't crash
+	until LastObject.Transparency >= 1 or not LastObject -- this statements must be met for the loop to stop repeating
+end
+
+function Dematerialize(character, humanoid, FirstPart) -- create a function with the parameter's character humanoid and FirstPart
+	if not character or not humanoid then -- if the character or humanoid parameters are not found end the function
+		return
+	end
+	
+	humanoid.WalkSpeed = 0 -- set the huamnoid's walkspeed to 0
+
+	local Parts = {} -- create a table called parts
+	
+	for i, v in pairs(character:GetChildren()) do -- loop through everything tn the character
+		if v:IsA("BasePart") then -- if what we looped through which is v is a basepart the n anchor it and insert it in a table
+			v.Anchored = true
+			table.insert(Parts, v)
+		elseif v:IsA("LocalScript") or v:IsA("Script") then -- if its a localscript or a script then destroy them
+			v:Destroy()
+		end
+	end
+
+	local SelectionBoxes = {} -- create a table called selectboxes
+
+	local FirstSelectionBox = SelectionBoxify(FirstPart) -- create a variable called FirstSelectionBox and in that variable call the function SelectionBoxify and set the parameter to firstpart instead of Object
+	Light(FirstPart) -- call the function light and set firstpart as the parameter
+	wait(0) -- wait 0 seconds
+
+	for i, v in pairs(Parts) do -- loop through the parts teble
+		if v ~= FirstPart then -- if v is not equal to the parameter firstpart then execute the following
+			table.insert(SelectionBoxes, SelectionBoxify(v)) -- insert in the table selectboxes the function SelectionBoxify which the parameter v
+			Light(v) -- call the function light again, with the parameter v
+		end
+	end
+
+	local ObjectsWithTransparency = GetTransparentsRecursive(character) -- create a variable calledObjectsWithTransparency which is equal to the function GetTransparentsRecursive with the parameter character
+	FadeOutObjects(ObjectsWithTransparency, 0.1) -- call the function FadeOutObjects with its two parameters being the variable ObjectsWithTransparency and 0.1 
+
+	wait(0.5) -- wait 0.5 seconds
+
+	character:BreakJoints() -- call the function breakjoints which breaks the player's joints and kills them
+	humanoid.Health = 0 -- set the health of the humanoid to 0
+	
+	Debris:AddItem(character, 2) -- add an item to the des]bris service which is the character and destroy it after 2 seconds
+
+	local FadeIncrement = 0.05 -- make a new varible named FadeIncrement which is equal to the value 0.05
+	Delay(0.2, function() -- delay the following lines of code in this function by 0.2 seconds while not interrupting the rest of the function
+		FadeOutObjects({FirstSelectionBox}, FadeIncrement) -- call the function FadeOutObjects with the parameters being the variable FirstSelectionBox in a table and the variable FadeIncrement
+		if character and character.Parent then -- if the character and the parent of the character exist then destroy the character
+			character:Destroy()
+		end
+	end)
+	FadeOutObjects(SelectionBoxes, FadeIncrement) -- call the function FadeOutObjects again and put as the parameters the table SelectionBoxes and the value FadeIncrement
+end
+
+function Touched(Projectile, Hit) -- create a function called touched with the parameters projectile and hit
+	if not Hit or not Hit.Parent then -- if hit or hit's parent don't exist then end the function
+		return
+	end
+	local character, humanoid = FindCharacterAncestor(Hit) -- create a variable which is the character and humanoid of the thing that got hit
+	if character and humanoid and character ~= Character then -- the characte and humanoid exist and the character is not equal to the person that has the gun then execute the following code
+		local ForceFieldExists = false -- create a value variable called ForceFieldExists and set it to false
+		for i, v in pairs(character:GetChildren()) do -- loop through the things in the character 
+			if v:IsA("ForceField") then -- if one of v which is the things in the character is equal to a forcefield then set the value ForceFieldExists to true
+				ForceFieldExists = true
+			end
+		end
+		if not ForceFieldExists then -- if ForceFieldExists is false then execute the following
+			if Projectile then -- if the projectile exists then execute the following
+				local HitFadeSound = Projectile:FindFirstChild(Sounds.HitFade.Name) -- create a variable called HitFadeSound which is equal to the name of hitfade located in Sounds
+				local torso = humanoid.Torso -- the torso variable is equal to the torso in the humanoid
+				if HitFadeSound and torso then -- if HitFadeSound and torso exist then excute the following
+					HitFadeSound.Parent = torso -- set HitFadeSound to the torso
+					HitFadeSound:Play() -- play the sound HitFadeSound
 				end
 			end
+			Dematerialize(character, humanoid, Hit) -- execute the function Dematerialize with character, humanoid, and hit as the parameters
+		end
+		if Projectile and Projectile.Parent then -- if the projectile and the parent of the projectile exist then destroy the projectile
+			Projectile:Destroy()
 		end
 	end
-end)
+end
 
-
-remote3.OnClientEvent:Connect(function(plr) --if this remote function fires which holds the info of plr then find the player's name and delete his ui
-	if script.Parent.ScrollingFrame:FindFirstChild(plr.Name) then
-		script.Parent.ScrollingFrame:FindFirstChild(plr.Name):Destroy()
+function Equipped() -- create a function called equipped
+	Character = Tool.Parent -- create a varible called character which is equal to the parent of the tool
+	Player = Players:GetPlayerFromCharacter(Character) -- create a variable called player which is equal to the service Players, and the function GetPlayerFromCharacter and use the Character variable
+	Humanoid = Character:FindFirstChild("Humanoid") -- create a variable called humanoid which is equal to the humanoid located in the Character 
+	if not Player or not Humanoid or Humanoid.Health == 0 then -- if the player or humanoid don't exist or the humanoid's health is equa lt o0 the nend the function
+		return
 	end
-end)
+end
 
---------------------------------------------
+function Activated(target) -- create a function called Activated with the parameter taget
+	if Tool.Enabled and Humanoid.Health > 0 then -- if the tool is capable of being uded nad the humanoid's health is more than 0 then execute the following code
+		Tool.Enabled = false -- make it so the tool can not be used this is the debounce
 
-local batid = 11111111 -- gampass id
-local MarketplaceService = game:GetService("MarketplaceService") -- get marketplace service
+		InvokeClient("PlaySound", Sounds.Fire) -- call the function InvokeClient and pass the parameters string PlaySound and the fire sound 
 
-game.Players.PlayerAdded:Connect(function(plr) -- when a player is added
-	plr.CharacterAdded:Connect(function(char) -- when a character is added
+		local HandleCFrame = Handle.CFrame -- create a variable which is equal to the handle's cframe
+		local FiringPoint = HandleCFrame.p + HandleCFrame:vectorToWorldSpace(NozzleOffset) -- create a value called firingpoint which is equal to the x y and z of the HandleCFrame plus the directional vector3 of the HandleCFrame to the NozzleOffset variable 
+		local ShotCFrame = CFrame.new(FiringPoint, target) -- create a variable that is equal to a CFrame with the firingpoint and target as its coordinates
 
-		local hasPass = false -- set this value to false so it can be changed later
-
-		-- make sure they have it
-		local success, message = pcall(function()
-			hasPass = MarketplaceService:UserOwnsGamePassAsync(plr.UserId, batid) -- set the value to true if the player does have the pass
-		end)
-
-		-- warn if there is an issue
-		if not success then
-			warn("Error while checking if player has pass: " .. tostring(message))
-			return
-		end
-
-		-- if they have it then give them a bat
-		if hasPass == true then
-			local bat = game.ReplicatedStorage.Bat:Clone()
-			bat.Parent = plr.Backpack
-		end
-	end)
-end)
----------------------------------------------
-local part = script.Parent.Handle -- this is the base of the toold
-local parts = script.Parent.Part
-local tool = script.Parent
-local debounce = false
-
---if the tool is clicked then check if the person touched is not equal to the parent and if its not damage said humanoid and play an animation and add a debounce so they don't spam it
-tool.Activated:Connect(function() -- if the tools is clicked activate this function
-	local character = tool.Parent -- get the players character
-	local humanoid = character:FindFirstChild("Humanoid") -- get the character's humanoid
-	local animator = humanoid:FindFirstChild("Animator") -- find the animator located in the humanoid
-	if debounce == false then -- make sure the debounce is false to prevent spamming
-		debounce = true -- set the debounce to true
-	
-		parts.Touched:Connect(function(hit) -- if the part is touched connect this function
-			if hit.Parent:FindFirstChild("Humanoid") and hit ~= tool.Parent:FindFirstChild(hit) and hit.Parent.Name == "outlawminion" and debounce == true then -- make sure the thing it rouched isn't himself
-				hit.Parent:FindFirstChild("Humanoid").Health = hit.Parent:FindFirstChild("Humanoid").Health - 2 -- deal 2 damage
-				part.hit.Playing = true -- play the sound
-				tool.GripForward = Vector3.new(-0.265, 0.699, 0.665) -- set the grip of the tool so that its straight out
-				tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
-				tool.GripRight = Vector3.new(0.89, 0.442, -0.111)
-				tool.GripUp = Vector3.new(0.371, -0.562, 0.739)
-				local kickAnimation = script.Animation -- get the kick animation
-				local kickAnimationTrack = animator:LoadAnimation(kickAnimation) -- load the animation
-
-				-- Play animation track
-				kickAnimationTrack:Play()
+		local LaserShotClone = BaseShot:Clone() -- create a variable which is a copy of the baseshot
+		LaserShotClone.CFrame = ShotCFrame + (ShotCFrame.lookVector * (BaseShot.Size.Z / 2)) -- the variable's cFrame is equal to ShotCFrame + ShotCFrame's lookvector times baseshot's size on the z axis divided by two
+		local BodyVelocity = Instance.new("BodyVelocity") -- create a new variable called BodyVelocity which is equa lto a new instance of BodyVelocity
+		BodyVelocity.velocity = ShotCFrame.lookVector * Speed -- make the BodyVelocity's velocity equal to ShotCFrame's look vector times the variable speed
+		BodyVelocity.Parent = LaserShotClone -- make the BodyVelocity's parent equal to the variable LaserShotClone
+		LaserShotClone.Touched:connect(function(Hit) -- if the LaserShotClone is touched then execute the following fuunction
+			if not Hit or not Hit.Parent then -- if hit or hit's parent don't exist
+				return -- end the function
 			end
+			Touched(LaserShotClone, Hit) -- call the function Touched with the parameters LaserShotClone and Hit
 		end)
-		wait(0.7)
-		debounce = false -- set the debounce back to false so that you can click it again
-		tool.GripForward = Vector3.new(-0.444, 0.896, 0.008) -- set the grip back to the original position
-		tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
-		tool.GripRight = Vector3.new(0.896, 0.444, -0.013)
-		tool.GripUp = Vector3.new(0.015, -0.002, 1)		
-	end
-end)
----------------------------------------------------------------------
-local SocialService = game:GetService("SocialService") -- get the social service
-local Players = game.Players
-local player = Players.LocalPlayer -- get the player
-local gui = script.Parent -- get the gui
+		Debris:AddItem(LaserShotClone, Duration) -- add to the debris service LaserShotClone and destroy him after the value Duration
+		LaserShotClone.Parent = game:GetService("Workspace") -- make the LaserShotClone's parent the workspace
 
---gui gets clicked then check if the game allows you to send invites and if so prompt it
-gui.Activated:Connect(function()
-	local canInvite = SocialService:CanSendGameInviteAsync(player)
-	if canInvite then
-		SocialService:PromptGameInvite(player)
-	end
-end)
+		wait(0) -- FireSound length
 
---if the player hovers on the gui then play a sound and turn the color to red
-gui.MouseEnter:Connect(function()
-	script.Parent.select.Playing = true
-	gui.TextColor3 = Color3.new(1, 0, 0)
-end)
-
---once the mouse leaves change the color back to black
-gui.MouseLeave:Connect(function()
-	gui.TextColor3 = Color3.new(0, 0, 0)
-end)
-----------------------------------------------------------------------
---when a players character is added wait till they die and when or if they do, check if they have ant of the tools listed below if they do clone it and place it in the workspace.
-game.Players.PlayerAdded:Connect(function(plr) -- when player is added give the plr variable
-	plr.CharacterAdded:Connect(function(char) -- use the plr variable so we know when the character is added and give the char variable
-		char.Humanoid.Died:Connect(function() -- use the char variable to find the humanoid and wait until the player is dead
+		InvokeClient("PlaySound", Sounds.Reload) -- call the function InvokeClient with the parameters with the string PlaySound and sound Sounds.Reload
 		
-		-- when the player dies check if they have any of the tools listed below and if they do replace it
-			if char:FindFirstChild("Hammer") or plr.Backpack:FindFirstChild("Hammer") then
-				local tool = game.ReplicatedStorage.Tools.ham:Clone()
-				tool.Parent = workspace
-			end
-			if char:FindFirstChild("Key") or plr.Backpack:FindFirstChild("Key") then
-				local tool = game.ReplicatedStorage.Tools.Key:Clone()
-				tool.Parent = workspace
-			end
-			if char:FindFirstChild("Crobar") or plr.Backpack:FindFirstChild("Crobar") then
-				local tool = game.ReplicatedStorage.Tools.cro:Clone()
-				tool.Parent = workspace
-			end
-			if char:FindFirstChild("Screwdriver") or plr.Backpack:FindFirstChild("Screwdriver") then
-				local tool = game.ReplicatedStorage.Tools.sc:Clone()
-				tool.Parent = workspace
-			end
-			if char:FindFirstChild("TNT") or plr.Backpack:FindFirstChild("TNT") then
-				local tool = game.ReplicatedStorage.Tools.tnt:Clone()
-				tool.Parent = workspace
-			end
-			if char:FindFirstChild("Carkeys") or plr.Backpack:FindFirstChild("Carkeys") then
-				local tool = game.ReplicatedStorage.Tools.carkey:Clone()
-				tool.Parent = workspace
-			end
-		end)
-	end)
-end)
+		wait(0) -- ReloadSound length
 
+		Tool.Enabled = true -- set it so the tool can be used
+	end
+end
+
+function Unequipped() -- create a function called Unequipped
+	
+end
+
+BaseShot = Instance.new("Part") -- create a new part
+BaseShot.Name = "Effect" -- name it effect
+BaseShot.BrickColor = BrickColor.new("Toothpaste") -- make it's brickcolor
+BaseShot.Material = Enum.Material.Plastic -- set it's material to plastic
+BaseShot.Shape = Enum.PartType.Block -- set the shape to a block
+BaseShot.TopSurface = Enum.SurfaceType.Smooth -- set the topsurface to smooth
+BaseShot.BottomSurface = Enum.SurfaceType.Smooth -- set the bottomsurface to smooth 
+BaseShot.FormFactor = Enum.FormFactor.Custom -- set the formfactor to custom
+BaseShot.Size = Vector3.new(0.2, 0.2, 3) -- set the size to Vector3.new(0.2, 0.2, 3)
+BaseShot.CanCollide = false -- make it not cancollide
+BaseShot.Locked = true -- make it locked
+SelectionBoxify(BaseShot) -- call the function SelectionBoxify with the parameter Baseshot
+Light(BaseShot) -- call the funtion light with the parameter BaseShot
+BaseShotSound = Sounds.HitFade:Clone() -- set the BaseShotSound to a clone of the hitfade sound
+BaseShotSound.Parent = BaseShot -- set BaseShotSound parent to BaseShot
+
+Tool.Equipped:connect(Equipped) -- when the tool is equipped execute the function Equipped
+Tool.Unequipped:connect(Unequipped) -- when the tool is unequipped execute the function Unequipped
