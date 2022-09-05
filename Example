@@ -4,10 +4,10 @@ local remote3 = game.ReplicatedStorage.playerguidestroy
 
 --when the remote function triggers check what players have the ingame value then add a gui of the players name to the scrolling frame
 remote.OnClientEvent:Connect(function()
-	for _,v in pairs(game.Players:GetPlayers()) do
-		if v:FindFirstChild("ingame") then
-		for i = 0,_,1 do
-				if not script.Parent.ScrollingFrame:FindFirstChild(v.Name) then
+	for _,v in pairs(game.Players:GetPlayers()) do -- loop through all the players
+		if v:FindFirstChild("ingame") then -- see if they have the ingame value
+		for i = 0,_,1 do -- loop one time
+				if not script.Parent.ScrollingFrame:FindFirstChild(v.Name) then -- if you don't find a gui with the name of the player as the text create one
 				
 				local clo = game.ReplicatedStorage.TextLabel:Clone()
 				clo.Parent = script.Parent.ScrollingFrame
@@ -20,8 +20,8 @@ remote.OnClientEvent:Connect(function()
 	end
 end)
 
---if this remote function fires which holds the info of plr then find the player's name and delete his ui
-remote3.OnClientEvent:Connect(function(plr)
+
+remote3.OnClientEvent:Connect(function(plr) --if this remote function fires which holds the info of plr then find the player's name and delete his ui
 	if script.Parent.ScrollingFrame:FindFirstChild(plr.Name) then
 		script.Parent.ScrollingFrame:FindFirstChild(plr.Name):Destroy()
 	end
@@ -29,17 +29,17 @@ end)
 
 --------------------------------------------
 
-local batid = 11111111
-local MarketplaceService = game:GetService("MarketplaceService")
+local batid = 11111111 -- gampass id
+local MarketplaceService = game:GetService("MarketplaceService") -- get marketplace service
 
-game.Players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function(char)
+game.Players.PlayerAdded:Connect(function(plr) -- when a player is added
+	plr.CharacterAdded:Connect(function(char) -- when a character is added
 
-		local hasPass = false
+		local hasPass = false -- set this value to false so it can be changed later
 
 		-- make sure they have it
 		local success, message = pcall(function()
-			hasPass = MarketplaceService:UserOwnsGamePassAsync(plr.UserId, batid)
+			hasPass = MarketplaceService:UserOwnsGamePassAsync(plr.UserId, batid) -- set the value to true if the player does have the pass
 		end)
 
 		-- warn if there is an issue
@@ -56,47 +56,47 @@ game.Players.PlayerAdded:Connect(function(plr)
 	end)
 end)
 ---------------------------------------------
-local part = script.Parent.Handle
+local part = script.Parent.Handle -- this is the base of the toold
 local parts = script.Parent.Part
 local tool = script.Parent
 local debounce = false
 
 --if the tool is clicked then check if the person touched is not equal to the parent and if its not damage said humanoid and play an animation and add a debounce so they don't spam it
-tool.Activated:Connect(function()
-	local character = tool.Parent
-	local humanoid = character:FindFirstChild("Humanoid")
-	local animator = humanoid:FindFirstChild("Animator")
-	if debounce == false then
-		debounce = true
+tool.Activated:Connect(function() -- if the tools is clicked activate this function
+	local character = tool.Parent -- get the players character
+	local humanoid = character:FindFirstChild("Humanoid") -- get the character's humanoid
+	local animator = humanoid:FindFirstChild("Animator") -- find the animator located in the humanoid
+	if debounce == false then -- make sure the debounce is false to prevent spamming
+		debounce = true -- set the debounce to true
 	
-		parts.Touched:Connect(function(hit)
-			if hit.Parent:FindFirstChild("Humanoid") and hit ~= tool.Parent:FindFirstChild(hit) and hit.Parent.Name == "outlawminion" and debounce == true then
-				hit.Parent:FindFirstChild("Humanoid").Health = hit.Parent:FindFirstChild("Humanoid").Health - 2
-				part.hit.Playing = true
-				tool.GripForward = Vector3.new(-0.265, 0.699, 0.665)
+		parts.Touched:Connect(function(hit) -- if the part is touched connect this function
+			if hit.Parent:FindFirstChild("Humanoid") and hit ~= tool.Parent:FindFirstChild(hit) and hit.Parent.Name == "outlawminion" and debounce == true then -- make sure the thing it rouched isn't himself
+				hit.Parent:FindFirstChild("Humanoid").Health = hit.Parent:FindFirstChild("Humanoid").Health - 2 -- deal 2 damage
+				part.hit.Playing = true -- play the sound
+				tool.GripForward = Vector3.new(-0.265, 0.699, 0.665) -- set the grip of the tool so that its straight out
 				tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
 				tool.GripRight = Vector3.new(0.89, 0.442, -0.111)
 				tool.GripUp = Vector3.new(0.371, -0.562, 0.739)
-				local kickAnimation = script.Animation
-				local kickAnimationTrack = animator:LoadAnimation(kickAnimation)
+				local kickAnimation = script.Animation -- get the kick animation
+				local kickAnimationTrack = animator:LoadAnimation(kickAnimation) -- load the animation
 
 				-- Play animation track
 				kickAnimationTrack:Play()
 			end
 		end)
 		wait(0.7)
-		debounce = false
-		tool.GripForward = Vector3.new(-0.444, 0.896, 0.008)
+		debounce = false -- set the debounce back to false so that you can click it again
+		tool.GripForward = Vector3.new(-0.444, 0.896, 0.008) -- set the grip back to the original position
 		tool.GripPos = Vector3.new(-0.032, 0.069, -1.059)
 		tool.GripRight = Vector3.new(0.896, 0.444, -0.013)
 		tool.GripUp = Vector3.new(0.015, -0.002, 1)		
 	end
 end)
 ---------------------------------------------------------------------
-local SocialService = game:GetService("SocialService")
+local SocialService = game:GetService("SocialService") -- get the social service
 local Players = game.Players
-local player = Players.LocalPlayer
-local gui = script.Parent
+local player = Players.LocalPlayer -- get the player
+local gui = script.Parent -- get the gui
 
 --gui gets clicked then check if the game allows you to send invites and if so prompt it
 gui.Activated:Connect(function()
@@ -117,10 +117,12 @@ gui.MouseLeave:Connect(function()
 	gui.TextColor3 = Color3.new(0, 0, 0)
 end)
 ----------------------------------------------------------------------
---when a players character is added wait till they die and when or if they do, check if they have ant of the tools listed below if they do clone it and place it in the workspace
-game.Players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function(char)
-		char.Humanoid.Died:Connect(function()
+--when a players character is added wait till they die and when or if they do, check if they have ant of the tools listed below if they do clone it and place it in the workspace.
+game.Players.PlayerAdded:Connect(function(plr) -- when player is added give the plr variable
+	plr.CharacterAdded:Connect(function(char) -- use the plr variable so we know when the character is added and give the char variable
+		char.Humanoid.Died:Connect(function() -- use the char variable to find the humanoid and wait until the player is dead
+		
+		-- when the player dies check if they have any of the tools listed below and if they do replace it
 			if char:FindFirstChild("Hammer") or plr.Backpack:FindFirstChild("Hammer") then
 				local tool = game.ReplicatedStorage.Tools.ham:Clone()
 				tool.Parent = workspace
